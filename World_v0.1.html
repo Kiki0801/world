@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<script>
+// 顶级命名空间：World
+var w = {
+
+    /*
+     * 创建/获取子命名空间，支持链式调用
+     */
+    ns: function(ns) {
+        var parts = ns.split("."),
+            object = this,
+            i, len;
+ 
+        for (i = 0, len = parts.length; i < len; i++) {
+            if (!object[parts[i]]) {
+                object[parts[i]] = {};
+            }
+            object = object[parts[i]];
+        }
+ 
+        return object;  // 支持链式调用
+    }
+}
+
+
+// 常量相关
+w.ns("Const");
+
+// char ~ Name
+w.Const.ITEMS = {
+    "#": "Wall",
+    " ": "Space",
+    "*": "Grass",
+    "c": "Fish"
+};
+
+// Name ~ char
+w.Const.R_ITEMS = {
+    "Wall": "#",
+    "Space": " ",
+    "Grass": "*",
+    "Fish": "c"
+};
+
+
+// 地图相关
+w.ns("Map");
+
+w.Map.map = [
+    "############################",
+    "#      #    # cc  *** cc  ##",
+    "#  c **    c       ** c    #",
+    "#     *    #####    c  cc  #",
+    "## ** c    #   #    ##     #",
+    "###           ##  ** #     #",
+    "#  c        ###  **  #  c  #",
+    "#   ####          c        #",
+    "# * ##       *   cc        #",
+    "# ** #       c **      ### #",
+    "#    #          *          #",
+    "############################"
+];
+
+w.Map.toString = function() {
+
+    var map = w.Map.map,
+        msg = [],
+        i;
+    
+    for (i = 0; i < map.length; i++) {
+        
+        msg.push(map[i]);
+    }
+    
+    return msg.join("\n");
+}
+
+w.Map.draw = function() {
+
+    console.log(w.Map.toString());
+}
+
+
+// 生物相关（规则）
+w.ns("Item");
+
+w.Item.Wall = {  // 墙，不可破坏的场景
+    name: "Wall",
+    tag: "#",
+    life: NaN,
+    step: 0,
+    baseEnergy: 0,
+    currEnergy: 0
+}
+
+w.Item.Space = {   // 空间
+    name: "Space",
+    tag: " ",
+    life: 0,
+    step: 0,
+    baseEnergy: 0,
+    currEnergy: 0
+}
+
+w.Item.Grass = {   // 草，自动生成，不能移动
+    name: "Grass",
+    tag: "*",
+    life: 3,
+    step: 0,
+    baseEnergy: 5,
+    currEnergy: 0,
+    fullEnergy: 10,
+    
+    grow: function() {
+
+        this.life--;        // 消耗生命
+        if (this.life === 0) {
+            
+            this.tag = w.Const.R_ITEMS["Space"];
+        }
+        this.currEnergy++;  // 增加能量
+    }
+}
+
+w.Item.Fish = {    // 鱼，食草动物，能移动，会饿死
+    name: "Fish",
+    tag: "c",
+    life: 7,
+    step: 1,
+    baseEnergy: 10,
+    currEnergy: 0,
+    fullEnergy: 20,
+    
+    grow: function() {
+
+        this.life--;        // 消耗生命
+        if (this.life === 0) {
+            
+            this.tag = w.Const.R_ITEMS["Space"];
+            alert("fish died"); ///
+        }
+        this.move();        // 移动
+        this.currEnergy--;  // 消耗能量
+        if (this.currEnergy === 0) {
+            
+            this.tag = w.Const.R_ITEMS["Space"];
+            alert("fish died"); ///
+        }
+        // TODO: 生孩子判断
+        // TODO: 生孩子
+    }
+}
+
+
+// 工具函数相关
+w.ns("Util");
+
+// 对字符串实现数组的splice方法
+w.Util.splice = function(str, index, len, newStr) {
+
+    var prefix = str.slice(0, index),
+        postfix = str.slice(index + len),
+        middle = newStr;
+        
+    return prefix + middle + postfix;
+}
+
+// 生成随机数[min, max]
+w.Util.rand = function(min, max) {
+
+    return Math.round(Math.random() * (max - min) + min);
+}
+
+// 核心相关
+w.ns("Core");
+
+// 初始化
+w.Core.init = function() {
+
+    w.Map.draw();
+}
+
+// 运行
+w.Core.run = function() {
+    
+    // TODO: ...
+    var map = w.Map.map;
+    var ITEMS = w.Const.ITEMS;
+    var R_ITEMS = w.Const.R_ITEMS;
+    var type;
+    var splice = w.Util.splice;
+    var rand = w.Util.rand;
+    
+    function move(x, y, step) {
+    
+        var env = getEnv(x, y, step);
+        //print(x + ", " + y + " can go to " + env.length + " pos, as fllows: " + env);///
+        if (env.length !== 0) {
+        
+            var des = env[rand(0, env.length - 1)];
+            map[des.x] = splice(map[des.x], des.y, 1, map[x].charAt(y));
+            map[x] = splice(map[x], y, 1, R_ITEMS["Space"]);
+        }
+    }
+    
+    function Point(x, y) {
+    
+        this.x = x;
+        this.y = y;
+    }
+    
+    Point.prototype.toString = function() {
+    
+        return "(" + this.x + ", " + this.y + ")"
+    }
+    
+    // 返回周围环境情况
+    function getEnv(x, y, step) {
+    
+        var canUp       = true,
+            canDown     = true,
+            canLeft     = true,
+            canRight    = true;
+            res         = [];
+        
+        // 慢慢往外扩大
+        for (var i = 1; i <= step; i++) {
+        
+            // 上
+            if (canUp && map[x - i] &&
+                    ITEMS[map[x - i].charAt(y)] === "Space") {
+            
+                if (i === step){
+                
+                    res.push(new Point(x - i, y));
+                }
+            } else {
+            
+                canUp = false;
+            }
+            
+            // 下
+            if (canDown && map[x + i] &&
+                    ITEMS[map[x + i].charAt(y)] === "Space") {
+            
+                if (i === step){
+                
+                    res.push(new Point(x + i, y));
+                }
+            } else {
+            
+                canDown = false;
+            }
+            
+            // 左
+            if (canLeft && map[x].charAt(y - i) &&
+                    ITEMS[map[x].charAt(y - i)] === "Space") {
+            
+                if (i === step){
+                
+                    res.push(new Point(x, y - i));
+                }
+            } else {
+            
+                canLeft = false;
+            }
+            
+            // 右
+            if (canRight && map[x].charAt(y + i) &&
+                    ITEMS[map[x].charAt(y + i)] === "Space") {
+            
+                if (i === step){
+                
+                    res.push(new Point(x, y + i));
+                }
+            } else {
+            
+                canRight = false;
+            }
+        }
+        
+        return res;
+    }
+    
+    for (var i = 0; i < map.length; i++) {
+    
+        for (var j = 0; j < map[i].length; j++) {
+        
+            type = w.Item[ITEMS[map[i].charAt(j)]];
+            // 能动的东西
+            if (type.step !== 0) {
+            
+                move(i, j, type.step);
+            }
+        }
+    }
+    
+    w.Map.draw();
+}
+
+/// 测试
+function print(msg) {
+
+    console.log(msg);
+}
+
+w.Core.init();
+//w.Core.run();
+
+</script>
+
+</head>
+
+
+<body>
+<button id="btnRun" style="width: 30em; height: 3em;">运行</button>
+
+
+<script>
+var btnRun = document.getElementById("btnRun");
+btnRun.onclick = function() {
+
+    w.Core.run();
+}
+</script>
+
+
+</body>
+
+</html>
