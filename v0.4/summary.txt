@@ -1,0 +1,37 @@
+1.  grunt-contrib-concat
+
+  grunt-contrib-concat是一个合并文件的插件，可以将多个css或js文件合并为一个，以节省链接数。同样的，安装：
+
+  npm install grunt-contrib-concat --save-dev
+  
+  这个插件有一下几个常用配置：
+
+    -  seperator：被合并的文件会用这个参数来join，例如你在合并压缩后的js文件时，可以加个;防止出错
+    -  banner：在合并后的文件头部加一些额外信息
+    -  footer：在合并后的文件尾部加一些额外信息
+
+2.  jshint的配置选项
+
+  http://jshint.com/docs/options/
+  
+3.  关于package.json
+
+    1.  不能有注释，否则npm install解析失败（无论是哪种形式的注释，无论放在文件首尾部分还是其它。。都不行）
+  
+    2.  version必须是X.X.X形式，X.X报错
+    
+    3.  命令行输入npm install grunt-contrib-watch --save-dev这样的命令可以自动更新package.json
+    
+4.  关于Gruntfile.js
+
+  用grunt <task_name>可以直接运行initConfig中定义的任务，
+  
+  不需要这样的代码：grunt.registerTask("concat", ["concat"]);    // 自定义任务：代码检查
+  
+  *注册同名任务会造成死递归*
+  
+  但可以给任务取别名，例如：
+  
+  grunt.registerTask("check", ["jshint"]);    // 自定义任务：代码检查
+  
+5.  
