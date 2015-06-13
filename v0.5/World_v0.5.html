@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+<script src="src/w.js"></script>
+<script src="src/Debug.js"></script>
+<script src="src/Const.js"></script>
+<script src="src/Item.js"></script>
+<script src="src/Map.js"></script>
+<script src="src/Util.js"></script>
+<script src="src/Core.js"></script>
+
+<!-- <script src="build/world.min.js"></script> -->
+
+</head>
+
+
+<body>
+<button id="btnRun" style="width: 10em; height: 3em;">开始（间隔300ms）</button>
+<button id="btnStop" style="width: 10em; height: 3em;">停止</button>
+
+<script>
+var btnRun = document.getElementById("btnRun");
+var btnStop = document.getElementById("btnStop");
+var tid = 0;    // Timeout ID
+var interval = 300;
+var loop = false;
+
+// 初始化
+w.Core.init();
+
+btnRun.onclick = function() {
+
+    tid = setTimeout(function() {
+    
+        w.Core.run();
+        // tid = setTimeout(arguments.callee, interval);
+    }, interval);
+}
+btnStop.onclick = function() {
+
+    clearTimeout(tid);
+}
+</script>
+
+
+</body>
+
+</html>
