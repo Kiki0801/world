@@ -1,4 +1,4 @@
-/*world_0.4.0 2015-06-13*/
+/*world_0.4.0 2015-06-14*/
 
 // 顶级命名空间：World
 var w = {
@@ -20,22 +20,44 @@ var w = {
  
         return object;  // 支持链式调用
     }
-};;// 常量相关
+};;// 调试相关
+w.ns("Debug");
+
+// 是否开启debug
+w.Debug.on = false;
+
+// console
+w.Debug.console = function(obj) {
+    if (w.Debug.on) {
+        console.log(obj);
+    }
+};
+
+// alert
+w.Debug.alert = function(str) {
+    if (w.Debug.on) {
+        alert(str);
+    }
+}
+
+// 简写
+w.c = w.Debug.console;
+w.a = w.Debug.alert;;// 常量相关
 w.ns("Const");
 
 // 初始地图
 w.Const.MAP = [
     "############################",
-    "#c**   #    #     ***     ##",
-    "#cc****            **      #",
-    "#          #####           #",
-    "## ****    #   #    ##     #",
-    "###           ##  ***#     #",
-    "#           ###  **  #     #",
-    "#   ####                   #",
-    "# * ##       *             #",
-    "# ** #         **      ### #",
-    "#    #          *          #",
+    "#c**   #  * #     ***  **c##",
+    "#  **** *   **c    *** c   #",
+    "#     c    #####       *   #",
+    "## ****    # c #    ##   c #",
+    "### *      *  ##  ***#     #",
+    "#   *c   *  ###  **  #*  * #",
+    "#   ####          *    *   #",
+    "# * ## *     *    **    *  #",
+    "#*** # c ***   **  *  *### #",
+    "#*   #*  *  c * *  *     **#",
     "############################"
 ];
 
@@ -89,7 +111,7 @@ w.Const.SPEC = {
         step: 1,
         baseEnergy: 5,
         currEnergy: 5,
-        fullEnergy: 10,
+        fullEnergy: 8,
         x: 0,
         y: 0
     }
@@ -100,6 +122,18 @@ w.Item.bury = function(x, y) {
     
     w.Map.items[x][y] = w.Item.create("Space", x, y);
 };
+
+w.Item.beget = function(parent, x, y) {
+    var items   = w.Map.items,
+        create  = w.Item.create;
+
+    // 创建孩子
+    var child = create(parent.name, x, y);
+    // 放到指定位置
+    items[x][y] = child;
+    // 父亲消耗能量
+    parent.currEnergy -= parent.baseEnergy;
+}
 
 // 父类型
 w.Item.Item = function(spec) {
@@ -142,7 +176,7 @@ w.Item.Item.prototype.moveTo = function(x, y) {
         }
     }
     // 修改属性
-    energy = items[thisX][thisY].currEnergy;
+    energy = items[x][y].currEnergy;
     if (energy > 0) {
         // 吃掉
         newItem.currEnergy += energy;
@@ -204,7 +238,7 @@ w.Item.Grass.prototype.grow = function() {
         
         // 死亡
         w.Item.bury(this.x, this.y);
-        w.c.log(this + " passed away");///
+        console.log(this + " passed away");///
     } else {
         
         this.currEnergy++;  // 增加能量
@@ -230,7 +264,7 @@ w.Item.Fish.prototype.grow = function() {
         
         // 自然死亡
         w.Item.bury(this.x, this.y);
-        w.c.log(this + " passed away");///
+        console.log(this + " passed away");///
     } else {
         
         this.currEnergy--;  // 消耗能量
@@ -238,10 +272,8 @@ w.Item.Fish.prototype.grow = function() {
             
             // 饿死
             w.Item.bury(this.x, this.y);
-            w.c.log(this + " starved to death");///
+            console.log(this + " starved to death");///
         }
-        // TODO: 生孩子判断
-        // TODO: 生孩子
     }
 };
 
@@ -275,7 +307,7 @@ w.Map.init = function() {
         }
         items.push(row);
     }
-    //w.c.log(items);///
+    //w.c(items);///
 };
 
 w.Map.toString = function() {
@@ -302,6 +334,16 @@ w.Map.toString = function() {
 w.Map.draw = function() {
 
     console.log(w.Map.toString());
+    // 输出统计信息
+    var counter = {};
+    var items = w.Map.items;
+    for (var i = 0; i < items.length; i++) {
+        for (var j = 0; j < items[i].length; j++) {
+            counter[items[i][j].name] || (counter[items[i][j].name] = 0);
+            counter[items[i][j].name]++;
+        }
+    }
+    console.log("fish: " + (counter["Fish"] || 0) + " grass: " + (counter["Grass"] || 0));
 };;// 工具函数相关
 w.ns("Util");
 
@@ -312,7 +354,6 @@ w.Util.rand = function(min, max) {
     var maxEx = max + 2; // 扩大范围到[min, max + 2]，引入两个多余值替换min/max
     
     do{
-    
         num = Math.round(Math.random() * (maxEx - min) + min);
         num--;
     } while (num < min || num > max);   // 范围不对，继续循环
@@ -330,49 +371,95 @@ w.Core.init = function() {
 
 // 运行
 w.Core.run = function() {
-    
-    var items   = w.Map.items,
-        moved   = [],  // 已经移动过的
+
+    var items = w.Map.items,
+        rand = w.Util.rand,
+        beget = w.Item.beget,
+        moved = [], // 已经移动过的
+        env,
+        index,
         pos,
         i,
-        j;
-     
+        j,
+        k;
+
     // grow
     for (i = 0; i < items.length; i++) {
-        
+
         for (j = 0; j < items[i].length; j++) {
-            
+
             // 移动
             if (moved[i] && moved[i][j] === true) {
-                
-                //w.c.log("   skip: " + i + ", " + j);///
+
+                // w.c("   skip: " + i + ", " + j);///
                 continue;
-            } else {
-                
-                // 生长
-                items[i][j].grow();
             }
-            
+
+            // 生长
+            items[i][j].grow();
+            // 生物生孩子（除了草还有上一轮没有空间生孩子的鱼）
+            if (items[i][j].life > 0 &&
+                items[i][j].currEnergy >= items[i][j].fullEnergy) {
+
+                // w.c(items[i][j].name + ", " + items[i][j].life + ", " + items[i][j].currEnergy + ", " + items[i][j].fullEnergy); ///
+
+                // 获取周围环境
+                env = getEnv(items[i][j]);
+
+                for (k = 0; k < env.length; k++) {
+
+                    if (env[k].name !== "Space") { // 去掉墙和其它生物
+
+                        env.splice(k--, 1);
+                    }
+                }
+
+                if (env.length > 0) {
+                    index = rand(0, env.length - 1);
+
+                    // w.c("grow beget{"); ///
+                    // w.c(items[i][j]); ///
+
+                    beget(items[i][j], env[index].x, env[index].y);
+
+                    // w.c(items[env[index].x][env[index].y]); ///
+                    // w.c("}"); ///
+                }
+            }
+
             pos = move(items[i][j]);
-            
-            //w.c.log("  current i,j: " + i + ", " + j);///
-            //w.c.log("  should skip: " + pos.x + ", " + pos.y);///
-            
+
+            //w.c("  current i,j: " + i + ", " + j);///
+            //w.c("  should skip: " + pos.x + ", " + pos.y);///
+
             // 记录已经移动过的点，下次跳过
-            moved[pos.x] = [];
-            moved[pos.x][pos.y] = true;
+            if (pos.x !== -1 && pos.y !== -1) {
+                if (Object.prototype.toString.call(moved[pos.x]) !== "[object Array]") {
+                    moved[pos.x] = [];
+                }
+                moved[pos.x][pos.y] = true;
+
+// 调试
+                // w.c("log: " + pos.x + ", " + pos.y);///
+            }
         }
     }
-    
+
+    /**
+     * 移动
+     * @param  {Item} item 需要移动的Item
+     * @return {Point} pos (-1, -1)表示Item未移动
+     */
     function move(item) {
-        
-        var rand    = w.Util.rand,
-            items   = w.Map.items,
+
+        var rand = w.Util.rand,
+            items = w.Map.items,
+            beget = w.Item.beget,
             pos = {
-                x: 0,
-                y: 0
+                x: -1,
+                y: -1
             },
-            index,
+            index = -1,
             env,
             target,
             ix, // item.x
@@ -380,46 +467,84 @@ w.Core.run = function() {
             tx, // target.x
             ty, // target.y
             i;
-        
-        //w.c.log(item.name);///
-        if (item.step !== 0) {  // 判断能否移动
-            
+
+        //w.c(item.name);///
+        if (item.step !== 0) { // 判断能否移动
+
             // 获取周围环境
             env = getEnv(item);
             for (i = 0; i < env.length; i++) {
-                
-                if (env[i].name === "Wall") {  // 去掉墙
-                    
+
+                if (env[i].name === "Wall" ||
+                        env[i].name === item.name) { // 去掉墙、同类
+
                     env.splice(i--, 1);
                 }
             }
             // 随机终点
-            index = rand(0, env.length - 1);
+            if (env.length === 0) {
+                /* 出口，动不了 */
+                return;
+            }
+            // 优先向有食物的地方移动
+            for (i = 0; i < env.length; i++) {
+
+                if (env[i].name === "Grass") { // 找食物
+
+                    index = i;
+                    break;
+                }
+            }
+            // 没有食物就随机移动
+            if (index === -1) {
+                index = rand(0, env.length - 1);
+            }
             target = env[index];
             ix = item.x;
             iy = item.y;
             tx = target.x;
             ty = target.y;
-            
-            w.c.log(item);///
-            w.c.log(item + " -> " + target);///
-            w.c.log(target);///
-            
+
+            // w.c(item);///
+            // w.c(item + " -> " + target); ///
+            // w.c(target);///
+
             // 移动
             items[ix][iy].moveTo(tx, ty);
 
-            w.c.log("    " + items[ix][iy]);///
+            // w.c(items[tx][ty]); ///
+
+            // 生孩子
+            // 获取新的周围环境
+            env = getEnv(items[tx][ty]);
+            for (i = 0; i < env.length; i++) {
+
+                if (env[i].name !== "Space") { // 去掉墙和其它生物
+
+                    env.splice(i--, 1);
+                }
+            }
+            if (env.length > 0) {
+                index = rand(0, env.length - 1);
+                if (items[tx][ty].currEnergy >= items[tx][ty].fullEnergy && env.length > 0) {
+                    // w.c("hunt beget{"); ///
+                    // w.c(items[tx][ty]); ///
+
+                    beget(items[tx][ty], env[index].x, env[index].y);
+
+                    // w.c(items[env[index].x][env[index].y]); ///
+                    // w.c("}"); ///
+                }
+            }
             
             // 记录已经移动过的点
             pos.x = tx;
             pos.y = ty;
-            
-            // TODO: 吃掉
         }
-        
+
         return pos;
     }
-    
+
     // 重绘
     w.Map.draw();
 };
@@ -431,16 +556,16 @@ function getEnv(item) {
         res = [],
         i,
         j;
-        
+
     for (i = item.x - 1; i <= item.x + 1; i++) {
-        
+
         for (j = item.y - 1; j <= item.y + 1; j++) {
-            
-            if (!(i === item.x && j === item.y)) {   // 除去自己
-                
+
+            if (!(i === item.x && j === item.y)) { // 除去自己
+
                 // 防止超出边界
                 if (items[i] && items[i][j] instanceof w.Item.Item) {
-                    
+
                     res.push(items[i][j]);
                 }
             }
@@ -449,5 +574,6 @@ function getEnv(item) {
 
     return res;
 }
+
 
 /* author: http://ayqy.net/ */

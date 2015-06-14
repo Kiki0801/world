@@ -30,42 +30,39 @@ w.Core.run = function() {
             // 移动
             if (moved[i] && moved[i][j] === true) {
 
-                //w.c("   skip: " + i + ", " + j);///
+                // w.c("   skip: " + i + ", " + j);///
                 continue;
-            } else {
+            }
 
-                // 生长
-                items[i][j].grow();
-                // 生物生孩子（除了草还有上一轮没有空间生孩子的鱼）
-                if (items[i][j].life > 0 &&
-                    items[i][j].currEnergy >= items[i][j].fullEnergy) {
+            // 生长
+            items[i][j].grow();
+            // 生物生孩子（除了草还有上一轮没有空间生孩子的鱼）
+            if (items[i][j].life > 0 &&
+                items[i][j].currEnergy >= items[i][j].fullEnergy) {
 
-                    // w.c(items[i][j].name + ", " + items[i][j].life + ", " + items[i][j].currEnergy + ", " + items[i][j].fullEnergy); ///
+                // w.c(items[i][j].name + ", " + items[i][j].life + ", " + items[i][j].currEnergy + ", " + items[i][j].fullEnergy); ///
 
-                    // 获取周围环境
-                    env = getEnv(items[i][j]);
+                // 获取周围环境
+                env = getEnv(items[i][j]);
 
-                    for (k = 0; k < env.length; k++) {
+                for (k = 0; k < env.length; k++) {
 
-                        if (env[k].name !== "Space") { // 去掉墙和其它生物
+                    if (env[k].name !== "Space") { // 去掉墙和其它生物
 
-                            env.splice(k--, 1);
-                        }
+                        env.splice(k--, 1);
                     }
+                }
 
-                    if (env.length === 0) {
-                        /* 出口，没地方生 */
-                        return;
-                    }
+                if (env.length > 0) {
                     index = rand(0, env.length - 1);
 
-                    w.c("grow beget{"); ///
-                    w.c(items[i][j]); ///
+                    // w.c("grow beget{"); ///
+                    // w.c(items[i][j]); ///
 
                     beget(items[i][j], env[index].x, env[index].y);
 
-                    w.c(items[env[index].x][env[index].y]); ///
-                    w.c("}"); ///
+                    // w.c(items[env[index].x][env[index].y]); ///
+                    // w.c("}"); ///
                 }
             }
 
@@ -75,21 +72,33 @@ w.Core.run = function() {
             //w.c("  should skip: " + pos.x + ", " + pos.y);///
 
             // 记录已经移动过的点，下次跳过
-            moved[pos.x] = [];
-            moved[pos.x][pos.y] = true;
+            if (pos.x !== -1 && pos.y !== -1) {
+                if (Object.prototype.toString.call(moved[pos.x]) !== "[object Array]") {
+                    moved[pos.x] = [];
+                }
+                moved[pos.x][pos.y] = true;
+
+// 调试
+                // w.c("log: " + pos.x + ", " + pos.y);///
+            }
         }
     }
 
+    /**
+     * 移动
+     * @param  {Item} item 需要移动的Item
+     * @return {Point} pos (-1, -1)表示Item未移动
+     */
     function move(item) {
 
         var rand = w.Util.rand,
             items = w.Map.items,
             beget = w.Item.beget,
             pos = {
-                x: 0,
-                y: 0
+                x: -1,
+                y: -1
             },
-            index,
+            index = -1,
             env,
             target,
             ix, // item.x
@@ -116,7 +125,19 @@ w.Core.run = function() {
                 /* 出口，动不了 */
                 return;
             }
-            index = rand(0, env.length - 1);
+            // 优先向有食物的地方移动
+            for (i = 0; i < env.length; i++) {
+
+                if (env[i].name === "Grass") { // 找食物
+
+                    index = i;
+                    break;
+                }
+            }
+            // 没有食物就随机移动
+            if (index === -1) {
+                index = rand(0, env.length - 1);
+            }
             target = env[index];
             ix = item.x;
             iy = item.y;
@@ -124,13 +145,13 @@ w.Core.run = function() {
             ty = target.y;
 
             // w.c(item);///
-            w.c(item + " -> " + target); ///
+            // w.c(item + " -> " + target); ///
             // w.c(target);///
 
             // 移动
             items[ix][iy].moveTo(tx, ty);
 
-            w.c(items[tx][ty]); ///
+            // w.c(items[tx][ty]); ///
 
             // 生孩子
             // 获取新的周围环境
@@ -142,22 +163,19 @@ w.Core.run = function() {
                     env.splice(i--, 1);
                 }
             }
-            if (env.length === 0) {
-                /* 出口，没地方生 */
-                return;
+            if (env.length > 0) {
+                index = rand(0, env.length - 1);
+                if (items[tx][ty].currEnergy >= items[tx][ty].fullEnergy && env.length > 0) {
+                    // w.c("hunt beget{"); ///
+                    // w.c(items[tx][ty]); ///
+
+                    beget(items[tx][ty], env[index].x, env[index].y);
+
+                    // w.c(items[env[index].x][env[index].y]); ///
+                    // w.c("}"); ///
+                }
             }
-            index = rand(0, env.length - 1);
-            if (items[tx][ty].currEnergy >= items[tx][ty].fullEnergy && env.length > 0) {
-                w.c("hunt beget{"); ///
-                w.c(items[tx][ty]); ///
-
-                beget(items[tx][ty], env[index].x, env[index].y);
-
-                w.c(items[env[index].x][env[index].y]); ///
-                w.c("}"); ///
-            }
-
-
+            
             // 记录已经移动过的点
             pos.x = tx;
             pos.y = ty;

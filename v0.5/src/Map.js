@@ -52,4 +52,14 @@ w.Map.toString = function() {
 w.Map.draw = function() {
 
     console.log(w.Map.toString());
+    // 输出统计信息
+    var counter = {};
+    var items = w.Map.items;
+    for (var i = 0; i < items.length; i++) {
+        for (var j = 0; j < items[i].length; j++) {
+            counter[items[i][j].name] || (counter[items[i][j].name] = 0);
+            counter[items[i][j].name]++;
+        }
+    }
+    console.log("fish: " + (counter["Fish"] || 0) + " grass: " + (counter["Grass"] || 0));
 };
